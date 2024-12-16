@@ -10,9 +10,9 @@ import (
 
 // represents the single file chunk
 type Chunk struct {
-	Hash     string
-	Size     int
-	FilePath string
+	Hash string
+	Size int
+	Data []byte
 }
 
 func SplitFileIntoChunks(filepath string, chunkSize int, outputDir string) ([]Chunk, error) {
@@ -22,12 +22,8 @@ func SplitFileIntoChunks(filepath string, chunkSize int, outputDir string) ([]Ch
 	}
 	defer file.Close()
 
-	if err := os.MkdirAll(outputDir, os.ModePerm); err != nil {
-		return nil, fmt.Errorf("failed  to create output directory, %w", err)
-	}
 	var chunks []Chunk
 	buffer := make([]byte, chunkSize)
-	chunkIndex := 0
 
 	for {
 		byteRead, err := file.Read(buffer)
@@ -40,23 +36,11 @@ func SplitFileIntoChunks(filepath string, chunkSize int, outputDir string) ([]Ch
 		hash := sha256.Sum256(buffer[:byteRead])
 		hashString := hex.EncodeToString(hash[:])
 
-		chunkFilePath := fmt.Sprintf("%s/chunk_%d_%s", outputDir, chunkIndex, hashString)
-		chunkFile, err := os.Create(chunkFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("filed to create chunk file %w", err)
-
-		}
-		if _, err := chunkFile.Write(buffer[:byteRead]); err != nil {
-			chunkFile.Close()
-			return nil, fmt.Errorf("failed to write to chunk file: %w", err)
-		}
-		chunkFile.Close()
 		chunks = append(chunks, Chunk{
-			Hash:     hashString,
-			Size:     byteRead,
-			FilePath: chunkFilePath,
+			Hash: hashString,
+			Size: byteRead,
+			Data: append([]byte{}, buffer[:byteRead]...),
 		})
-		chunkIndex++
 	}
 	return chunks, nil
 
@@ -65,6 +49,6 @@ func SplitFileIntoChunks(filepath string, chunkSize int, outputDir string) ([]Ch
 func PrintChunkFile(chunks []Chunk) {
 	fmt.Println("File chunk metadata")
 	for _, chunk := range chunks {
-		fmt.Printf("Hash %s, Size %d bytes, Path %s\n", chunk.Hash, chunk.Size, chunk.FilePath)
+		fmt.Printf("Hash %s, Size %d bytes,\n", chunk.Hash, chunk.Size)
 	}
 }
